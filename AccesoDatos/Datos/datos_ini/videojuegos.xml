@@ -1,0 +1,37 @@
+<videojuegos>
+    <videojuego>
+        <id>1</id>
+        <titulo>The Legend of Zelda: Breath of the Wild</titulo>
+        <genero>Aventura</genero>
+        <anio>2017</anio>
+        <nota>9.5</nota>
+    </videojuego>
+    <videojuego>
+        <id>2</id>
+        <titulo>Mario Odyssey</titulo>
+        <genero>Aventura</genero>
+        <anio>2017</anio>
+        <nota>8.5</nota>
+    </videojuego>
+    <videojuego>
+        <id>3</id>
+        <titulo>Super Mario Bros. Wonder</titulo>
+        <genero>Plataformas</genero>
+        <anio>2023</anio>
+        <nota>9.2</nota>
+    </videojuego>
+    <videojuego>
+        <id>4</id>
+        <titulo>Super Smash Bros. Ultimate</titulo>
+        <genero>Lucha</genero>
+        <anio>2018</anio>
+        <nota>9.3</nota>
+    </videojuego>
+    <videojuego>
+        <id>5</id>
+        <titulo>Metroid Dread</titulo>
+        <genero>Acción-Aventura</genero>
+        <anio>2021</anio>
+        <nota>9.0</nota>
+    </videojuego>
+</videojuegos>
