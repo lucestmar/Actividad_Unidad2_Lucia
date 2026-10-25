@@ -1,2 +1,2 @@
 # Actividad_Unidad2_Lucia
-Entrega de 
+Entrega de las actividades
