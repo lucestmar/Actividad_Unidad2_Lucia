@@ -10,6 +10,7 @@ import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.exists
@@ -82,6 +83,7 @@ class PrueInicio {
 
             if (!rutaVideoJ.exists()) Files.createFile(rutaVideoJ)
             if (!rutaVideoXml.exists()) Files.createFile(rutaVideoXml)
+            if (!rutaVideoJson.exists()) Files.createFile(rutaVideoJson)
 
             videoJuego = leerDatosCSV(rutaVideoJ)
 
@@ -135,12 +137,12 @@ class PrueInicio {
             }
         } while (eleccion != 0)
     }
-    fun conversiones(){
+    fun conversiones() {
         var eleccion: Int
-        do{
-        println(
-            """
-             --- Conversiones ---
+        do {
+            println(
+                """
+                --- Conversiones ---
                 1. CSV  → JSON
                 2. CSV  → XML
                 3. JSON → CSV
@@ -148,22 +150,103 @@ class PrueInicio {
                 5. XML  → CSV
                 6. XML  → JSON
                 0. Volver
-             ====================================
-                Elige una opción:""".trimIndent()
-        )
-        eleccion = readln().toIntOrNull() ?: -1
+                ====================================
+                Elige una opción:
+                """.trimIndent()
+            )
+            eleccion = readln().toIntOrNull() ?: -1
 
-        when (eleccion) {
-            0 ->
-            1 ->
-            2 ->
-            3 ->
-            4 ->
-            5 ->
-            6->
-            else -> println("Opción no válida.")
+            when (eleccion) {
+                0 -> println("Volviendo al menú principal...")
+                1 -> convertirCSVaJSON()
+                2 -> convertirCSVaXML()
+                3 -> convertirJSONaCSV()
+                4 -> convertirJSONaXML()
+                5 -> convertirXMLaCSV()
+                6 -> convertirXMLaJSON()
+                else -> println("Opción no válida.")
+            }
+        } while (eleccion != 0)
+    }
+
+    private fun convertirCSVaJSON() {
+        try {
+            val juegos = leerDatosCSV(rutaVideoJ)
+            guardarJSON(juegos, rutaVideoJson)
+        } catch (e: Exception) {
+            println("Error al convertir CSV a JSON: ${e.message}")
         }
-    } while (eleccion != 0)
+    }
+
+    private fun convertirCSVaXML() {
+        try {
+            val juegos = leerDatosCSV(rutaVideoJ)
+            guardarXML(juegos, rutaVideoXml)
+        } catch (e: Exception) {
+            println("Error al convertir CSV a XML: ${e.message}")
+        }
+    }
+
+    private fun convertirJSONaCSV() {
+        try {
+            val juegos = leerVideojuegosJSON(rutaVideoJson).map {
+                Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota)
+            }
+            guardarDatosCSV(rutaVideoJ, juegos)
+            videoJuego = juegos.toMutableList()
+        } catch (e: Exception) {
+            println("Error al convertir JSON a CSV: ${e.message}")
+        }
+    }
+
+    private fun convertirJSONaXML() {
+        try {
+            val juegos = leerVideojuegosJSON(rutaVideoJson).map {
+                Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota)
+            }
+            guardarXML(juegos, rutaVideoXml)
+        } catch (e: Exception) {
+            println("Error al convertir JSON a XML: ${e.message}")
+        }
+    }
+
+    private fun convertirXMLaCSV() {
+        try {
+            val juegos = leerVideojuegosXML(rutaVideoXml)
+            guardarDatosCSV(rutaVideoJ, juegos)
+            videoJuego = juegos.toMutableList()
+        } catch (e: Exception) {
+            println("Error al convertir XML a CSV: ${e.message}")
+        }
+    }
+
+    private fun convertirXMLaJSON() {
+        try {
+            val juegos = leerVideojuegosXML(rutaVideoXml)
+            guardarJSON(juegos, rutaVideoJson)
+        } catch (e: Exception) {
+            println("Error al convertir XML a JSON: ${e.message}")
+        }
+    }
+
+    private fun guardarJSON(juegos: List<Videojuego>, ruta: Path) {
+        val datos = juegos.map {
+            VideojuegoJSON(it.id, it.titulo, it.genero, it.anio, it.nota)
+        }
+        val json = Json { prettyPrint = true }
+        Files.writeString(ruta, json.encodeToString(datos))
+        println("Datos guardados correctamente en JSON: $ruta")
+    }
+
+    private fun guardarXML(juegos: List<Videojuego>, ruta: Path) {
+        val xmlMapper = XmlMapper().apply { registerKotlinModule() }
+        val datos = VideojuegosWrapper(
+            juegos.map {
+                VideojuegoXML(it.id, it.titulo, it.genero, it.anio, it.nota)
+            }
+        )
+        xmlMapper.writeValue(ruta.toFile(), datos)
+        println("Datos guardados correctamente en XML: $ruta")
     }
 
     fun leerDatosCSV(ruta: Path): MutableList<Videojuego> {
@@ -310,29 +393,35 @@ class PrueInicio {
     private fun gestionJSON() {
         val listaJson = leerVideojuegosJSON(rutaVideoJson)
         if (listaJson.isNotEmpty()) {
-            println("\n--- Videojuegos leídos desde XML ---")
+            println("\\n--- Videojuegos leídos desde JSON ---")
             listaJson.forEach { println(it) }
-            val nuevos: List<VideojuegoJSON> = listaJson.filter { jsonJuego -> videoJuego.none { it.id == jsonJuego.id } }
+            val nuevos = listaJson
+                .filter { jsonJuego -> videoJuego.none { it.id == jsonJuego.id } }
+                .map { Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota) }
+
             videoJuego.addAll(nuevos)
             guardarDatosCSV(rutaVideoJ, videoJuego)
             println("Se han añadido ${nuevos.size} videojuegos nuevos.")
-
         } else {
-            println("No se pudieron cargar los datos del fichero XML.")
+            println("No se pudieron cargar los datos del fichero JSON.")
         }
     }
+
     private fun leerVideojuegosJSON(ruta: Path): List<VideojuegoJSON> {
-        var plantas: List<VideojuegoJSON> = emptyList()
-
-        if (!Files.isReadable(ruta)) {
-            println("Error: No se puede leer el fichero en la ruta: $ruta")
-        } else {
-
-            val jsonString = Files.readString(ruta)
-
-            plantas = Json.decodeFromString<List<VideojuegoJSON>>(jsonString)
-            println("--- Información leída con éxito de: $ruta")
+        if (!Files.isReadable(ruta) || Files.size(ruta) == 0L) {
+            println("Error o archivo vacío en la ruta: $ruta")
+            return emptyList()
         }
-        return plantas
+
+        return try {
+            val jsonString = Files.readString(ruta)
+            val json = Json { ignoreUnknownKeys = true }
+            val juegos = json.decodeFromString<List<VideojuegoJSON>>(jsonString)
+            println("--- Información leída con éxito de: $ruta")
+            juegos
+        } catch (e: Exception) {
+            println("Error al leer el JSON: ${e.message}")
+            emptyList()
+        }
     }
 }
