@@ -1,106 +1,38 @@
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.dataformat.xml.XmlMapper
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty
-import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement
-import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
-import java.nio.file.Files
-import java.nio.file.Path
-import kotlin.io.path.exists
-
 fun main() {
-    val app = PrueInicio()
+    val repository = VideojuegoRepository()
+    val service = VideojuegoService(repository)
+    val app = PrueInicio(service)
     app.iniciar()
 }
 
-@Serializable
-data class VideojuegoJSON(
-    @SerialName("id") val id: Int,
-    @SerialName("titulo") val titulo: String,
-    @SerialName("genero") val genero: String,
-    @SerialName("anio") val anio: Int,
-    @SerialName("nota") val nota: Double
-)
-
-data class VideojuegoXML(
-    @JacksonXmlProperty(localName = "id")
-    val id: Int = 0,
-    @JacksonXmlProperty(localName = "titulo")
-    val titulo: String = "",
-    @JacksonXmlProperty(localName = "genero")
-    val genero: String = "",
-    @JacksonXmlProperty(localName = "anio")
-    val anio: Int = 0,
-    @JacksonXmlProperty(localName = "nota")
-    val nota: Double = 0.0
-)
-
-@JacksonXmlRootElement(localName = "videojuegos")
-data class VideojuegosWrapper(
-    @JacksonXmlElementWrapper(useWrapping = false)
-    @JacksonXmlProperty(localName = "videojuego")
-    val listaVideojuego: List<VideojuegoXML> = emptyList()
-)
-
-class PrueInicio {
-    var videoJuego: MutableList<Videojuego> = mutableListOf()
-    val rutaVideoXml: Path = Path.of("Datos", "datos_ini", "videojuegos.xml")
-    val rutaVideoJ: Path = Path.of("Datos", "datos_ini", "videojuegos.csv")
-    val rutaVideoJson: Path = Path.of("Datos", "datos_ini", "videojuegos.json")
+class PrueInicio(private val service: VideojuegoService) {
 
     fun iniciar() {
-        rutas()
+        service.inicializar()
         var numMenu: Int
         do {
             numMenu = verMenuP()
             when (numMenu) {
                 1 -> menuCSV()
-                2 -> gestionXML()
-                3 -> gestionJSON()
+                2 -> gestionXMLUI()
+                3 -> gestionJSONUI()
                 4 -> conversiones()
+                5 -> menuBIN()
                 0 -> println("Saliendo del programa...")
                 else -> println("Opción no válida. Inténtalo de nuevo.")
             }
         } while (numMenu != 0)
     }
 
-    fun rutas() {
-        val rutaDato: Path = Path.of("Datos")
-        val rutaInicio: Path = Path.of("Datos", "datos_ini")
-        val rutaFin: Path = Path.of("Datos", "datos_fin")
-
-        try {
-            if (!rutaDato.exists()) Files.createDirectories(rutaDato)
-            if (!rutaFin.exists()) Files.createDirectories(rutaFin)
-            if (!rutaInicio.exists()) Files.createDirectories(rutaInicio)
-
-            if (!rutaVideoJ.exists()) Files.createFile(rutaVideoJ)
-            if (!rutaVideoXml.exists()) Files.createFile(rutaVideoXml)
-            if (!rutaVideoJson.exists()) Files.createFile(rutaVideoJson)
-
-            videoJuego = leerDatosCSV(rutaVideoJ)
-
-        } catch (e: Exception) {
-            println("\n--- Ocurrió un error durante la carga de rutas ---")
-            e.printStackTrace()
-        }
-    }
-
-    fun verMenuP(): Int {
+    private fun verMenuP(): Int {
         println(
-            """ 
+            """
             ===== CATÁLOGO DE VIDEOJUEGOS =====
             1. Gestión CSV
             2. Leer catálogo desde XML
             3. Leer catálogo desde JSON
             4. Conversiones entre formatos
+            5. Gestión fichero BIN
             0. Salir
             ====================================
             Elige una opción:""".trimIndent()
@@ -108,7 +40,96 @@ class PrueInicio {
         return readln().toIntOrNull() ?: -1
     }
 
-    fun menuCSV() {
+    private fun menuBIN() {
+        var eleccion: Int
+        do {
+            println(
+                """
+                
+                ===== CRUD fichero BIN =====
+                1. Importar información de un fichero de intercambio.
+                2. Leer información del fichero binario.
+                3. Añadir un registro nuevo
+                4. Modificar un registro existente (por ID)
+                5. Eliminar un registro existente (por ID)
+                0. Volver
+                ============================
+                Elige una opción:""".trimIndent()
+            )
+            eleccion = readln().toIntOrNull() ?: -1
+
+            when (eleccion) {
+                0 -> println("Volviendo al menú principal...")
+                1 -> {
+                    service.importarABinario()
+                    println("Fichero binario cargado/importado con éxito.")
+                }
+                2 -> {
+                    val lista = service.leerBinario()
+                    if (lista.isEmpty()) {
+                        println("El fichero binario está vacío o no contiene registros válidos.")
+                    } else {
+                        println("\n--- REGISTROS EN FICHERO BINARIO ---")
+                        lista.forEach { println(it) }
+                    }
+                }
+                3 -> {
+                    val juego = pedirDatosVideojuego()
+                    if (juego != null) {
+                        service.añadirABinario(juego)
+                        println("Registro añadido con éxito al fichero binario.")
+                    }
+                }
+                4 -> {
+                    println("Ingrese ID del registro a modificar en BIN:")
+                    val id = readln().toIntOrNull() ?: return println("ID no válida.")
+                    println("Introduce los nuevos datos:")
+                    val nuevoJuego = pedirDatosVideojuego(idFija = id)
+                    if (nuevoJuego != null) {
+                        if (service.modificarEnBinario(id, nuevoJuego)) {
+                            println("Registro con ID $id modificado correctamente en el fichero BIN.")
+                        } else {
+                            println("No se encontró ningún registro con la ID especificada.")
+                        }
+                    }
+                }
+                5 -> {
+                    println("Ingrese ID a eliminar en BIN:")
+                    val id = readln().toIntOrNull() ?: return println("ID no válida.")
+                    if (service.eliminarDeBinario(id)) {
+                        println("Registro con ID $id eliminado (marcado como borrado) en BIN.")
+                    } else {
+                        println("No se encontró ningún registro con ID: $id")
+                    }
+                }
+                else -> println("Opción no válida.")
+            }
+        } while (eleccion != 0)
+    }
+
+    private fun pedirDatosVideojuego(idFija: Int? = null): Videojuego? {
+        return try {
+            val id = idFija ?: run {
+                println("Ingrese ID:")
+                readln().toInt()
+            }
+            println("Ingrese Título:")
+            val titulo = readln()
+            println("Ingrese Género:")
+            val genero = readln()
+            println("Ingrese Año:")
+            val anio = readln().toInt()
+            println("Ingrese Nota:")
+            val nota = readln().toDouble()
+
+            Videojuego(id, titulo, genero, anio, nota)
+        } catch (e: Exception) {
+            println("Error introduciendo datos.")
+            null
+        }
+    }
+
+    private fun menuCSV() {
         var eleccion: Int
         do {
             println(
@@ -127,17 +148,84 @@ class PrueInicio {
             eleccion = readln().toIntOrNull() ?: -1
 
             when (eleccion) {
-                0 -> guardarDatosCSV(rutaVideoJ, videoJuego)
-                1 -> listarVideojuegos(videoJuego)
-                2 -> buscarPorId(videoJuego)
-                3 -> añadirVideojuego(videoJuego)
-                4 -> modificarNota(videoJuego)
-                5 -> eliminarVideojuego(videoJuego)
+                0 -> service.guardarCSV()
+                1 -> listarVideojuegosUI()
+                2 -> buscarPorIdUI()
+                3 -> añadirVideojuegoUI()
+                4 -> modificarNotaUI()
+                5 -> eliminarVideojuegoUI()
                 else -> println("Opción no válida.")
             }
         } while (eleccion != 0)
     }
-    fun conversiones() {
+
+    private fun listarVideojuegosUI() {
+        val juegos = service.listarVideojuegos()
+        if (juegos.isEmpty()) {
+            println("La lista de videojuegos está vacía.")
+        } else {
+            println("\n--- LISTA DE VIDEOJUEGOS ---")
+            juegos.forEach { println(it) }
+        }
+    }
+
+    private fun buscarPorIdUI() {
+        println("Dame la ID a buscar:")
+        val id = readln().toIntOrNull() ?: return println("ID no válido.")
+        val juego = service.buscarPorId(id)
+        if (juego != null) println("Videojuego encontrado: $juego")
+        else println("No se encontró ningún videojuego con ID: $id")
+    }
+
+    private fun añadirVideojuegoUI() {
+        val juego = pedirDatosVideojuego()
+        if (juego != null) {
+            service.añadirVideojuego(juego)
+            println("Videojuego añadido con éxito.")
+        }
+    }
+
+    private fun modificarNotaUI() {
+        println("Dime la ID:")
+        val id = readln().toIntOrNull() ?: return println("ID no válida.")
+        val juego = service.buscarPorId(id)
+        if (juego != null) {
+            println("Nota actual: ${juego.nota}\nNueva nota:")
+            val nuevaNota = readln().toDoubleOrNull()
+            if (nuevaNota != null) {
+                if (service.modificarNota(id, nuevaNota)) {
+                    println("Nota actualizada correctamente a $nuevaNota.")
+                }
+            } else println("Nota introducida no válida.")
+        } else println("No se encontró ningún videojuego con ID: $id")
+    }
+
+    private fun eliminarVideojuegoUI() {
+        println("Dime la ID a eliminar:")
+        val id = readln().toIntOrNull() ?: return println("ID no válida.")
+        if (service.eliminarVideojuego(id)) println("Videojuego eliminado con éxito.")
+        else println("No se encontró ningún videojuego con ID: $id")
+    }
+
+    private fun gestionXMLUI() {
+        val añadidos = service.gestionXML()
+        if (añadidos >= 0) {
+            println("Se han añadido $añadidos videojuegos nuevos desde XML.")
+        } else {
+            println("No se pudieron cargar los datos del fichero XML.")
+        }
+    }
+
+    private fun gestionJSONUI() {
+        val añadidos = service.gestionJSON()
+        if (añadidos >= 0) {
+            println("Se han añadido $añadidos videojuegos nuevos desde JSON.")
+        } else {
+            println("No se pudieron cargar los datos del fichero JSON.")
+        }
+    }
+
+    private fun conversiones() {
         var eleccion: Int
         do {
             println(
@@ -158,270 +246,23 @@ class PrueInicio {
 
             when (eleccion) {
                 0 -> println("Volviendo al menú principal...")
-                1 -> convertirCSVaJSON()
-                2 -> convertirCSVaXML()
-                3 -> convertirJSONaCSV()
-                4 -> convertirJSONaXML()
-                5 -> convertirXMLaCSV()
-                6 -> convertirXMLaJSON()
+                1 -> ejecutarConversion { service.convertirCSVaJSON() }
+                2 -> ejecutarConversion { service.convertirCSVaXML() }
+                3 -> ejecutarConversion { service.convertirJSONaCSV() }
+                4 -> ejecutarConversion { service.convertirJSONaXML() }
+                5 -> ejecutarConversion { service.convertirXMLaCSV() }
+                6 -> ejecutarConversion { service.convertirXMLaJSON() }
                 else -> println("Opción no válida.")
             }
         } while (eleccion != 0)
     }
 
-    private fun convertirCSVaJSON() {
+    private inline fun ejecutarConversion(accion: () -> Unit) {
         try {
-            val juegos = leerDatosCSV(rutaVideoJ)
-            guardarJSON(juegos, rutaVideoJson)
+            accion()
+            println("Hecho con éxito.")
         } catch (e: Exception) {
-            println("Error al convertir CSV a JSON: ${e.message}")
-        }
-    }
-
-    private fun convertirCSVaXML() {
-        try {
-            val juegos = leerDatosCSV(rutaVideoJ)
-            guardarXML(juegos, rutaVideoXml)
-        } catch (e: Exception) {
-            println("Error al convertir CSV a XML: ${e.message}")
-        }
-    }
-
-    private fun convertirJSONaCSV() {
-        try {
-            val juegos = leerVideojuegosJSON(rutaVideoJson).map {
-                Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota)
-            }
-            guardarDatosCSV(rutaVideoJ, juegos)
-            videoJuego = juegos.toMutableList()
-        } catch (e: Exception) {
-            println("Error al convertir JSON a CSV: ${e.message}")
-        }
-    }
-
-    private fun convertirJSONaXML() {
-        try {
-            val juegos = leerVideojuegosJSON(rutaVideoJson).map {
-                Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota)
-            }
-            guardarXML(juegos, rutaVideoXml)
-        } catch (e: Exception) {
-            println("Error al convertir JSON a XML: ${e.message}")
-        }
-    }
-
-    private fun convertirXMLaCSV() {
-        try {
-            val juegos = leerVideojuegosXML(rutaVideoXml)
-            guardarDatosCSV(rutaVideoJ, juegos)
-            videoJuego = juegos.toMutableList()
-        } catch (e: Exception) {
-            println("Error al convertir XML a CSV: ${e.message}")
-        }
-    }
-
-    private fun convertirXMLaJSON() {
-        try {
-            val juegos = leerVideojuegosXML(rutaVideoXml)
-            guardarJSON(juegos, rutaVideoJson)
-        } catch (e: Exception) {
-            println("Error al convertir XML a JSON: ${e.message}")
-        }
-    }
-
-    private fun guardarJSON(juegos: List<Videojuego>, ruta: Path) {
-        val datos = juegos.map {
-            VideojuegoJSON(it.id, it.titulo, it.genero, it.anio, it.nota)
-        }
-        val json = Json { prettyPrint = true }
-        Files.writeString(ruta, json.encodeToString(datos))
-        println("Datos guardados correctamente en JSON: $ruta")
-    }
-
-    private fun guardarXML(juegos: List<Videojuego>, ruta: Path) {
-        val xmlMapper = XmlMapper().apply { registerKotlinModule() }
-        val datos = VideojuegosWrapper(
-            juegos.map {
-                VideojuegoXML(it.id, it.titulo, it.genero, it.anio, it.nota)
-            }
-        )
-        xmlMapper.writeValue(ruta.toFile(), datos)
-        println("Datos guardados correctamente en XML: $ruta")
-    }
-
-    fun leerDatosCSV(ruta: Path): MutableList<Videojuego> {
-        val listaResultado = mutableListOf<Videojuego>()
-
-        if (!Files.isReadable(ruta) || Files.size(ruta) == 0L) {
-            return listaResultado
-        }
-
-        val reader = csvReader { delimiter = ';' }
-        val filas: List<List<String>> = reader.readAll(ruta.toFile())
-
-        val videojuegosLeidos = filas.mapNotNull { columnas ->
-            if (columnas.size >= 5) {
-                try {
-                    val id = columnas[0].trim().toInt()
-                    val titulo = columnas[1].trim()
-                    val genero = columnas[2].trim()
-                    val anio = columnas[3].trim().toInt()
-                    val nota = columnas[4].trim().toDouble()
-                    Videojuego(id, titulo, genero, anio, nota)
-                } catch (e: Exception) {
-                    null
-                }
-            } else null
-        }.toMutableList()
-
-        println("--- Información leída con éxito de: $ruta")
-        return videojuegosLeidos
-    }
-
-    private fun guardarDatosCSV(ruta: Path, lista: List<Videojuego>) {
-        try {
-            val writer = csvWriter { delimiter = ';' }
-            val filas = lista.map {
-                listOf(it.id.toString(), it.titulo, it.genero, it.anio.toString(), it.nota.toString())
-            }
-            writer.writeAll(filas, ruta.toFile())
-            println("Datos guardados correctamente en CSV.")
-        } catch (e: Exception) {
-            println("Error al guardar en el CSV: ${e.message}")
-        }
-    }
-
-    private fun eliminarVideojuego(lista: MutableList<Videojuego>) {
-        println("Dime la ID a eliminar:")
-        val id = readln().toIntOrNull() ?: return println("ID no válida.")
-
-        val eliminado = lista.removeIf { it.id == id }
-        if (eliminado) println("Videojuego eliminado con éxito.")
-        else println("No se encontró ningún videojuego con ID: $id")
-    }
-
-    private fun modificarNota(lista: MutableList<Videojuego>) {
-        println("Dime la ID:")
-        val id = readln().toIntOrNull() ?: return println("ID no válida.")
-
-        val juego = lista.find { it.id == id }
-        if (juego != null) {
-            println("Nota actual: ${juego.nota}\nNueva nota:")
-            val nuevaNota = readln().toDoubleOrNull()
-            if (nuevaNota != null) {
-                juego.nota = nuevaNota
-                println("Nota actualizada correctamente a $nuevaNota.")
-            } else println("Nota introducida no válida.")
-        } else println("No se encontró ningún videojuego con ID: $id")
-    }
-
-    private fun añadirVideojuego(lista: MutableList<Videojuego>) {
-        try {
-            println("Ingrese ID:")
-            val id = readln().toInt()
-            println("Ingrese Título:")
-            val titulo = readln()
-            println("Ingrese Género:")
-            val genero = readln()
-            println("Ingrese Año:")
-            val anio = readln().toInt()
-            println("Ingrese Nota:")
-            val nota = readln().toDouble()
-
-            lista.add(Videojuego(id, titulo, genero, anio, nota))
-            println("Videojuego añadido con éxito.")
-        } catch (e: Exception) {
-            println("Error al introducir los datos del videojuego.")
-        }
-    }
-
-    private fun buscarPorId(lista: List<Videojuego>) {
-        println("Dame la ID a buscar:")
-        val id = readln().toIntOrNull() ?: return println("ID no válido.")
-
-        val juego = lista.find { it.id == id }
-        if (juego != null) println("Videojuego encontrado: $juego")
-        else println("No se encontró ningún videojuego con ID: $id")
-    }
-
-    private fun listarVideojuegos(lista: List<Videojuego>) {
-        if (lista.isEmpty()) {
-            println("La lista de videojuegos está vacía.")
-        } else {
-            println("\n--- LISTA DE VIDEOJUEGOS ---")
-            lista.forEach { println(it) }
-        }
-    }
-
-    private fun leerVideojuegosXML(ruta: Path): List<Videojuego> {
-        if (!Files.isReadable(ruta) || Files.size(ruta) == 0L) {
-            println("Error o archivo vacío en la ruta: $ruta")
-            return emptyList()
-        }
-
-        return try {
-            val xmlMapper = XmlMapper().apply {
-                registerKotlinModule()
-                configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-            }
-            val contenedor: VideojuegosWrapper = xmlMapper.readValue(ruta.toFile())
-
-            contenedor.listaVideojuego.map { xml ->
-                Videojuego(xml.id, xml.titulo, xml.genero, xml.anio, xml.nota)
-            }
-        } catch (e: Exception) {
-            println("Error al leer el XML: ${e.message}")
-            emptyList()
-        }
-    }
-
-    private fun gestionXML() {
-        val listaXml = leerVideojuegosXML(rutaVideoXml)
-        if (listaXml.isNotEmpty()) {
-            println("\n--- Videojuegos leídos desde XML ---")
-            listaXml.forEach { println(it) }
-            val nuevos = listaXml.filter { xmlJuego -> videoJuego.none { it.id == xmlJuego.id } }
-            videoJuego.addAll(nuevos)
-            guardarDatosCSV(rutaVideoJ, videoJuego)
-            println("Se han añadido ${nuevos.size} videojuegos nuevos.")
-
-        } else {
-            println("No se pudieron cargar los datos del fichero XML.")
-        }
-    }
-
-    private fun gestionJSON() {
-        val listaJson = leerVideojuegosJSON(rutaVideoJson)
-        if (listaJson.isNotEmpty()) {
-            println("\\n--- Videojuegos leídos desde JSON ---")
-            listaJson.forEach { println(it) }
-            val nuevos = listaJson
-                .filter { jsonJuego -> videoJuego.none { it.id == jsonJuego.id } }
-                .map { Videojuego(it.id, it.titulo, it.genero, it.anio, it.nota) }
-
-            videoJuego.addAll(nuevos)
-            guardarDatosCSV(rutaVideoJ, videoJuego)
-            println("Se han añadido ${nuevos.size} videojuegos nuevos.")
-        } else {
-            println("No se pudieron cargar los datos del fichero JSON.")
-        }
-    }
-
-    private fun leerVideojuegosJSON(ruta: Path): List<VideojuegoJSON> {
-        if (!Files.isReadable(ruta) || Files.size(ruta) == 0L) {
-            println("Error o archivo vacío en la ruta: $ruta")
-            return emptyList()
-        }
-
-        return try {
-            val jsonString = Files.readString(ruta)
-            val json = Json { ignoreUnknownKeys = true }
-            val juegos = json.decodeFromString<List<VideojuegoJSON>>(jsonString)
-            println("--- Información leída con éxito de: $ruta")
-            juegos
-        } catch (e: Exception) {
-            println("Error al leer el JSON: ${e.message}")
-            emptyList()
+            println("Error al realizar la conversión: ${e.message}")
         }
     }
 }
