@@ -29,7 +29,7 @@ data class Videojuego(
 
 ## 2. Instrucciones de ejecución
 
-- **Requisitos previos**: JDK 17.
+- **Requisitos previos**: JDK 24.
 - **Compilación**: Abre el proyecto en IntelliJ IDEA y deja que Gradle sincronice las dependencias.
 - **Fichero de datos inicial**: Coloca `videojuegos.csv` en la carpeta `datos_ini` antes de ejecutar.
 - **Ejecución principal**: Ejecuta `Main.kt` para el catálogo con acceso aleatorio.
@@ -37,8 +37,14 @@ data class Videojuego(
 
 ## 3. Decisiones de diseño
 ###Estructura de carpetas
-src/
-├── Videojuego.kt              ← data class
-├── VideojuegoRepository.kt    ← leer/escribir CSV
-├── VideojuegoService.kt       ← lógica CRUD
-└── Main.kt                    ← menús + readln
+- src/
+- ├── Videojuego.kt              ← data class
+- ├── VideojuegoXML.kt           ← data class + conversor
+- ├── VideojuegoJSON.kt          ← data class + conversor
+- ├── VideojuegoRepository.kt    ← leer/escribir CSV
+- ├── VideojuegoService.kt       ← lógica CRUD
+- └── Main.kt                    ← menús + readln
+
+ - Elegí CSV como formato inicial porque es sencillo de crear y editar manualmente con cualquier hoja de cálculo.
+ - Decidi crear mas classes por separado para que sea mas facil de buscar.
+
