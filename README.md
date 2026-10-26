@@ -39,8 +39,8 @@ data class Videojuego(
 ###Estructura de carpetas
 - src/
 - ├── Videojuego.kt              ← data class
-- ├── VideojuegoXML.kt           ← data class + conversor
-- ├── VideojuegoJSON.kt          ← data class + conversor
+- ├── VideojuegoXML.kt           ← data class 
+- ├── VideojuegoJSON.kt          ← data class
 - ├── VideojuegoRepository.kt    ← leer/escribir CSV
 - ├── VideojuegoService.kt       ← lógica CRUD
 - └── Main.kt                    ← menús + readln
