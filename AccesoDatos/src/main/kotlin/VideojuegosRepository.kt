@@ -37,7 +37,7 @@ class VideojuegoRepository(
             e.printStackTrace()
         }
     }
-
+// leer y guardar CSV
     fun leerCSV(): MutableList<Videojuego> {
         val listaResultado = mutableListOf<Videojuego>()
         if (!Files.isReadable(rutaCsv) || Files.size(rutaCsv) == 0L) return listaResultado
@@ -73,7 +73,7 @@ class VideojuegoRepository(
             println("Error al guardar en el CSV: ${e.message}")
         }
     }
-
+//leer y guardar XML
     fun leerXML(): List<Videojuego> {
         if (!Files.isReadable(rutaXml) || Files.size(rutaXml) == 0L) return emptyList()
 
@@ -100,7 +100,7 @@ class VideojuegoRepository(
             println("Error al guardar en XML: ${e.message}")
         }
     }
-
+// leer y guardar Json
     fun leerJSON(): List<Videojuego> {
         if (!Files.isReadable(rutaJson) || Files.size(rutaJson) == 0L) return emptyList()
 
@@ -141,7 +141,7 @@ class VideojuegoRepository(
         }
         return sb.toString().trim()
     }
-
+// Cosas para Binario
     private fun escribirRegistroBIN(raf: RandomAccessFile, juego: Videojuego) {
         raf.writeInt(juego.id)
         raf.escribirStringFijo(juego.titulo, Videojuego.LONGITUD_TITULO)

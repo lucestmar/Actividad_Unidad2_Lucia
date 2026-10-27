@@ -30,7 +30,7 @@ class VideojuegoService(private val repository: VideojuegoRepository) {
     fun guardarCSV() {
         repository.guardarCSV(videoJuegos)
     }
-
+//binario
     fun importarABinario() {
         repository.guardarTodosBIN(videoJuegos)
     }
@@ -72,7 +72,7 @@ class VideojuegoService(private val repository: VideojuegoRepository) {
         }
         return -1
     }
-
+//Convertir
     fun convertirCSVaJSON() {
         val juegos = repository.leerCSV()
         repository.guardarJSON(juegos)
